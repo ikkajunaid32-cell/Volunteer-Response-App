@@ -18,7 +18,7 @@
 		<true/>
 	</dict>
 	<key>CFBundleExecutable</key>
-	<string>VolunteerResponse</string>
+	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.volunteer.response</string>
 	<key>CFBundleInfoDictionaryVersion</key>
