@@ -1,5 +1,5 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:volunteer_app/core/constants/api_constants.dart';
 import 'package:volunteer_app/core/theme/app_theme.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -95,49 +95,69 @@ class TaskImageThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedUrl = ApiConstants.resolveImageUrl(imageUrl);
+    final url = imageUrl?.trim();
+
+    Widget placeholder() {
+      return Container(
+        height: height,
+        width: width,
+        color: Colors.grey.shade200,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported_outlined, color: Colors.grey.shade500, size: 36),
+            const SizedBox(height: 4),
+            Text(
+              'No image preview',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (url == null || url.isEmpty) {
+      return ClipRRect(
+        borderRadius: borderRadius ?? BorderRadius.circular(12),
+        child: placeholder(),
+      );
+    }
+
+    // Check if local file
+    final isLocalFile = !url.startsWith('http://') && !url.startsWith('https://');
 
     return ClipRRect(
       borderRadius: borderRadius ?? BorderRadius.circular(12),
-      child: Image.network(
-        resolvedUrl,
-        height: height,
-        width: width,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: height,
-            width: width,
-            color: Colors.grey.shade200,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.image_not_supported_outlined, color: Colors.grey.shade500, size: 36),
-                const SizedBox(height: 4),
-                Text(
-                  'Image preview unavailable',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-                ),
-              ],
+      child: isLocalFile
+          ? Image.file(
+              File(url),
+              height: height,
+              width: width,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => placeholder(),
+            )
+          : Image.network(
+              url,
+              height: height,
+              width: width,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => placeholder(),
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                  height: height,
+                  width: width,
+                  color: Colors.grey.shade100,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            height: height,
-            width: width,
-            color: Colors.grey.shade100,
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

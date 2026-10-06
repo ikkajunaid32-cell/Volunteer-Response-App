@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:volunteer_app/core/theme/app_theme.dart';
 import 'package:volunteer_app/ui/view_models/auth_view_model.dart';
 import 'package:volunteer_app/ui/views/auth/register_view.dart';
-import 'package:volunteer_app/ui/views/common/api_config_dialog.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -58,9 +57,35 @@ class _LoginViewState extends State<LoginView> {
         title: const Text('Volunteer Response'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Server Settings',
-            onPressed: () => ApiConfigDialog.show(context),
+            icon: const Icon(Icons.storage_rounded),
+            tooltip: 'Database Info',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Row(
+                    children: [
+                      Icon(Icons.storage_rounded, color: Color(0xFF00695C)),
+                      SizedBox(width: 8),
+                      Text('SQL Database', style: TextStyle(fontSize: 18)),
+                    ],
+                  ),
+                  content: const Text(
+                    'This app is powered by an embedded, on-device SQLite relational database.\n\n'
+                    '• Full offline capability\n'
+                    '• No external server or localhost required\n'
+                    '• Users, tasks, and registrations are stored locally in SQL tables.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

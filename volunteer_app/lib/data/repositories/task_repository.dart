@@ -1,38 +1,27 @@
+import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:volunteer_app/core/constants/api_constants.dart';
 import 'package:volunteer_app/data/models/registration_model.dart';
 import 'package:volunteer_app/data/models/task_model.dart';
-import 'package:volunteer_app/data/services/api_service.dart';
+import 'package:volunteer_app/data/repositories/auth_repository.dart';
+import 'package:volunteer_app/data/services/app_database.dart';
 
 class TaskRepository {
-  final ApiService _apiService;
+  final AppDatabase _db = AppDatabase.instance;
+  final AuthRepository _authRepository = AuthRepository();
 
-  TaskRepository(this._apiService);
+  TaskRepository();
+
+  Future<int?> _getCurrentUserId() async {
+    final user = await _authRepository.getCachedUser();
+    return user?.userId;
+  }
 
   Future<List<TaskModel>> getTasks({String? status, String? search}) async {
-    final queryParams = <String>[];
-    if (status != null && status.isNotEmpty && status != 'All') {
-      queryParams.add('status=${Uri.encodeComponent(status)}');
-    }
-    if (search != null && search.trim().isNotEmpty) {
-      queryParams.add('search=${Uri.encodeComponent(search.trim())}');
-    }
-
-    String url = ApiConstants.tasks;
-    if (queryParams.isNotEmpty) {
-      url += '?${queryParams.join('&')}';
-    }
-
-    final res = await _apiService.get(url);
-    if (res['tasks'] is List) {
-      return (res['tasks'] as List).map((json) => TaskModel.fromJson(json)).toList();
-    }
-    return [];
+    return await _db.getTasks(status: status, search: search);
   }
 
   Future<TaskModel> getTaskDetails(int taskId) async {
-    final res = await _apiService.get(ApiConstants.taskDetails(taskId));
-    return TaskModel.fromJson(res['task']);
+    return await _db.getTaskDetails(taskId);
   }
 
   Future<void> createTask({
@@ -49,20 +38,22 @@ class TaskRepository {
     String status = 'Available',
     List<String> additionalImages = const [],
   }) async {
-    await _apiService.post(ApiConstants.tasks, {
-      'taskName': taskName,
-      'description': description,
-      'imageUrl': imageUrl,
-      'location': location,
-      'latitude': latitude,
-      'longitude': longitude,
-      'taskDate': taskDate,
-      'startTime': startTime,
-      'endTime': endTime,
-      'volunteersRequired': volunteersRequired,
-      'status': status,
-      'additionalImages': additionalImages,
-    });
+    final userId = await _getCurrentUserId();
+    await _db.createTask(
+      taskName: taskName,
+      description: description,
+      imageUrl: imageUrl,
+      location: location,
+      latitude: latitude,
+      longitude: longitude,
+      taskDate: taskDate,
+      startTime: startTime,
+      endTime: endTime,
+      volunteersRequired: volunteersRequired,
+      status: status,
+      additionalImages: additionalImages,
+      createdBy: userId,
+    );
   }
 
   Future<void> updateTask({
@@ -80,56 +71,56 @@ class TaskRepository {
     String? status,
     List<String>? additionalImages,
   }) async {
-    await _apiService.put(ApiConstants.taskDetails(taskId), {
-      'taskName': ?taskName,
-      'description': ?description,
-      'imageUrl': ?imageUrl,
-      'location': ?location,
-      'latitude': ?latitude,
-      'longitude': ?longitude,
-      'taskDate': ?taskDate,
-      'startTime': ?startTime,
-      'endTime': ?endTime,
-      'volunteersRequired': ?volunteersRequired,
-      'status': ?status,
-      'additionalImages': ?additionalImages,
-    });
+    await _db.updateTask(
+      taskId: taskId,
+      taskName: taskName,
+      description: description,
+      imageUrl: imageUrl,
+      location: location,
+      latitude: latitude,
+      longitude: longitude,
+      taskDate: taskDate,
+      startTime: startTime,
+      endTime: endTime,
+      volunteersRequired: volunteersRequired,
+      status: status,
+      additionalImages: additionalImages,
+    );
   }
 
   Future<void> deleteTask(int taskId) async {
-    await _apiService.delete(ApiConstants.taskDetails(taskId));
+    await _db.deleteTask(taskId);
   }
 
   Future<void> applyTask(int taskId) async {
-    await _apiService.post(ApiConstants.applyTask(taskId), {});
+    final userId = await _getCurrentUserId();
+    if (userId == null) {
+      throw Exception('User session expired. Please sign in again.');
+    }
+    await _db.applyTask(taskId, userId);
   }
 
   Future<void> cancelTaskRegistration(int taskId) async {
-    await _apiService.post(ApiConstants.cancelTask(taskId), {});
+    final userId = await _getCurrentUserId();
+    if (userId == null) {
+      throw Exception('User session expired. Please sign in again.');
+    }
+    await _db.cancelTaskRegistration(taskId, userId);
   }
 
   Future<List<TaskModel>> getMyTasks({String? status}) async {
-    String url = ApiConstants.myTasks;
-    if (status != null && status.isNotEmpty && status != 'All') {
-      url += '?status=${Uri.encodeComponent(status)}';
+    final userId = await _getCurrentUserId();
+    if (userId == null) {
+      return [];
     }
-
-    final res = await _apiService.get(url);
-    if (res['tasks'] is List) {
-      return (res['tasks'] as List).map((json) => TaskModel.fromJson(json)).toList();
-    }
-    return [];
+    return await _db.getUserTasks(userId, status: status);
   }
 
   Future<List<TaskRegistrationModel>> getTaskVolunteers(int taskId) async {
-    final res = await _apiService.get(ApiConstants.taskVolunteers(taskId));
-    if (res['volunteers'] is List) {
-      return (res['volunteers'] as List).map((json) => TaskRegistrationModel.fromJson(json)).toList();
-    }
-    return [];
+    return await _db.getTaskVolunteers(taskId);
   }
 
   Future<String> uploadImage(XFile imageFile) async {
-    return await _apiService.uploadImage(imageFile);
+    return await _db.saveImageLocally(File(imageFile.path));
   }
 }

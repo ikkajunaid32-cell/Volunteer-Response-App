@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:volunteer_app/core/constants/api_constants.dart';
 import 'package:volunteer_app/data/models/user_model.dart';
-import 'package:volunteer_app/data/services/api_service.dart';
+import 'package:volunteer_app/data/services/app_database.dart';
 
 class AuthRepository {
-  final ApiService _apiService;
+  final AppDatabase _db = AppDatabase.instance;
   static const String _userCacheKey = 'cached_current_user';
 
-  AuthRepository(this._apiService);
+  AuthRepository();
 
   Future<UserModel?> getCachedUser() async {
     final prefs = await SharedPreferences.getInstance();
@@ -29,21 +28,15 @@ class AuthRepository {
   }
 
   Future<void> clearSession() async {
-    await _apiService.clearToken();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userCacheKey);
   }
 
   Future<UserModel> login(String email, String password) async {
-    final res = await _apiService.post(ApiConstants.login, {
-      'email': email,
-      'password': password,
-    });
-
-    final token = res['token'];
-    await _apiService.saveToken(token);
-
-    final user = UserModel.fromJson(res['user']);
+    final user = await _db.login(email, password);
+    if (user == null) {
+      throw Exception('Invalid email or password. Please try again.');
+    }
     await _cacheUser(user);
     return user;
   }
@@ -55,31 +48,25 @@ class AuthRepository {
     String? phone,
     String role = 'volunteer',
   }) async {
-    final res = await _apiService.post(ApiConstants.register, {
-      'name': name,
-      'email': email,
-      'password': password,
-      'phone': phone,
-      'role': role,
-    });
-
-    final token = res['token'];
-    await _apiService.saveToken(token);
-
-    final user = UserModel.fromJson(res['user']);
+    final user = await _db.register(
+      name: name,
+      email: email,
+      password: password,
+      phone: phone,
+      role: role,
+    );
     await _cacheUser(user);
     return user;
   }
 
   Future<UserModel?> fetchCurrentProfile() async {
-    if (_apiService.authToken == null) return null;
-    try {
-      final res = await _apiService.get(ApiConstants.me);
-      final user = UserModel.fromJson(res['user']);
-      await _cacheUser(user);
-      return user;
-    } catch (_) {
-      return null;
+    final cached = await getCachedUser();
+    if (cached == null) return null;
+    final fresh = await _db.getUserById(cached.userId);
+    if (fresh != null) {
+      await _cacheUser(fresh);
+      return fresh;
     }
+    return cached;
   }
 }
