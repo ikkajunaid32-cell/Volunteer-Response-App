@@ -1,0 +1,28 @@
+# Large binaries (Android APK is >100MB and exceeds GitHub push limits)
+*.apk
+*.ipa
+Volunteer Response App.apk
+Volunteer Response App.ipa
+
+# Node.js Backend
+backend/node_modules/
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/*.sqlite
+backend/*.sqlite-journal
+
+# Flutter / Dart
+volunteer_app/.dart_tool/
+volunteer_app/.idea/
+volunteer_app/*.iml
+volunteer_app/build/
+volunteer_app/.flutter-plugins
+volunteer_app/.flutter-plugins-dependencies
+volunteer_app/.packages
+volunteer_app/.pub-cache/
+volunteer_app/.pub/
+
+# System / Editor files
+.DS_Store
+Thumbs.db
+*.log
