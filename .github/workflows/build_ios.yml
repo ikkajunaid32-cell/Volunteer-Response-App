@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+  workflow_dispatch:
 
 jobs:
   build-ipa:
@@ -13,12 +13,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '21'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -32,11 +26,14 @@ jobs:
 
       - name: Build iOS App (.ipa)
         working-directory: volunteer_app
+        shell: bash
         run: |
-          # Build unsigned IPA for testing/ad-hoc distribution
-          flutter build ios --release --no-codesign
-          
-          # Package into .ipa
+          flutter build ios --release --no-codesign 2>&1 | tee ios_build.log || {
+            echo "::error::Flutter build iOS failed! Inspecting log tail:"
+            tail -n 120 ios_build.log
+            exit 1
+          }
+
           mkdir -p build/ios/iphoneos/Payload
           cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
           cd build/ios/iphoneos
@@ -46,6 +43,13 @@ jobs:
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VolunteerResponse-iOS-IPA
+          name: VolunteerResponse-iOS.ipa
           path: volunteer_app/build/ios/iphoneos/VolunteerResponse.ipa
           retention-days: 14
+
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: volunteer_app/ios_build.log
